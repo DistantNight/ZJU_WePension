@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -211,7 +212,7 @@ public class CommodityController {
                         break;
                     }
                     orderElement.addProperty("comId", commodity.getComId().toString());
-                    orderElement.addProperty("conNo", commodity.getComNo());
+                    orderElement.addProperty("comNo", commodity.getComNo());
                     orderElement.addProperty("comName", commodity.getComName());
                     Double price = commodity.getPrice() * 1.0 / 100.0;
                     orderElement.addProperty("comPrice", String.format("%.2f", price));

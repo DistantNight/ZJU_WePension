@@ -3,6 +3,7 @@ package com.zjuwepension.application.controller;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.zjuwepension.AppPush;
 import com.zjuwepension.application.entity.*;
 import com.zjuwepension.application.service.*;
 import com.zjuwepension.tool.Tool;
@@ -28,6 +29,12 @@ public class ButtonController {
     private CommodityOrderTemplateService commodityOrderTemplateService;
     @Autowired
     private CommodityService commodityService;
+    @Autowired
+    private CommodityOrderService commodityOrderService;
+    @Autowired
+    private AlertTemplateService alertTemplateService;
+    @Autowired
+    private AlertHistoryService alertHistoryService;
 
     @PostMapping("/bind")
     public String buttonBind(@RequestBody String body){
@@ -132,14 +139,23 @@ public class ButtonController {
     public String buttonBindAlert(@RequestBody String body){
         JsonObject jsonData = new JsonParser().parse(body).getAsJsonObject();
         JsonObject result = new JsonObject();
-        if (jsonData.has("curId") && jsonData.has("buttonId")) {
+        if (jsonData.has("curId") && jsonData.has("buttonId") &&
+            jsonData.has("alertPhone") && jsonData.has("alertMessage")) {
             if (userButtonService.hasUserButton(jsonData.get("curId").getAsLong(), jsonData.get("buttonId").getAsLong())) {
                 Button button = buttonService.findButtonById(jsonData.get("buttonId").getAsLong());
-                button = buttonService.updateButtonAlert(button);
-                if (null != button) {
-                    result.addProperty("ErrorInfo", "");
-                } else {
-                    result.addProperty("ErrorInfo", "绑定失败");
+                AlertTemplate template = alertTemplateService.findActiveTemplateByButtonId(button.getButtonId());
+                if (null == template || !alertHistoryService.hasUnConfirmedHistory(template.getAlertTemplateId())) {
+                    template = new AlertTemplate();
+                    template.setAlertPhone(jsonData.get("alertPhone").getAsString());
+                    template.setAlertMessage(jsonData.get("alertMessage").getAsString());
+                    button = buttonService.updateButtonAlert(button, template);
+                    if (null != button) {
+                        result.addProperty("ErrorInfo", "");
+                    } else {
+                        result.addProperty("ErrorInfo", "绑定失败");
+                    }
+                } else{
+                    result.addProperty("ErrorInfo", "存在未完成订单");
                 }
             } else {
                 result.addProperty("ErrorInfo", "该用户未绑定该按钮");
@@ -165,17 +181,22 @@ public class ButtonController {
             jsonData.has("comDeliveryName")) {
             if (userButtonService.hasUserButton(jsonData.get("curId").getAsLong(), jsonData.get("buttonId").getAsLong())){
                 Button button = buttonService.findButtonById(jsonData.get("buttonId").getAsLong());
-                CommodityOrderTemplate template = new CommodityOrderTemplate();
-                template.setNum(jsonData.get("num").getAsLong());
-                template.setComId(jsonData.get("comId").getAsLong());
-                template.setDeliveryAddress(jsonData.get("comDeliveryAddress").getAsString());
-                template.setDeliveryPhone(jsonData.get("comDeliveryPhone").getAsString());
-                template.setDeliveryName(jsonData.get("comDeliveryName").getAsString());
-                button = buttonService.updateButtonCommodity(button, template);
-                if (null != button) {
-                    result.addProperty("ErrorInfo", "");
+                CommodityOrderTemplate template = commodityOrderTemplateService.findActiveTemplateByButtonId(button.getButtonId());
+                if(null == template || !commodityOrderService.hasUnFinishedOrder(template.getTempId())){
+                    template = new CommodityOrderTemplate();
+                    template.setNum(jsonData.get("num").getAsLong());
+                    template.setComId(jsonData.get("comId").getAsLong());
+                    template.setDeliveryAddress(jsonData.get("comDeliveryAddress").getAsString());
+                    template.setDeliveryPhone(jsonData.get("comDeliveryPhone").getAsString());
+                    template.setDeliveryName(jsonData.get("comDeliveryName").getAsString());
+                    button = buttonService.updateButtonCommodity(button, template);
+                    if (null != button) {
+                        result.addProperty("ErrorInfo", "");
+                    } else {
+                        result.addProperty("ErrorInfo", "绑定失败");
+                    }
                 } else {
-                    result.addProperty("ErrorInfo", "绑定失败");
+                    result.addProperty("ErrorInfo", "存在未完成订单");
                 }
             } else {
                 result.addProperty("ErrorInfo", "该用户未绑定该按钮");
@@ -259,8 +280,10 @@ public class ButtonController {
                             result.addProperty("buttonType", new Long(button.getButtonType().ordinal()).toString());
                             result.addProperty("comId", commodity.getComId().toString());
                             result.addProperty("comNo", commodity.getComNo());
+                            result.addProperty("comImgPath", commodity.getImgPath());
                             result.addProperty("comName", commodity.getComName());
-                            result.addProperty("comPrice", commodity.getPrice().toString());
+                            Double price = commodity.getPrice() * 1.0 / 100.0;
+                            result.addProperty("comPrice", String.format("%.2f", price));
                             result.addProperty("comNum", template.getNum().toString());
                             result.addProperty("comDeliveryPhone", template.getDeliveryPhone());
                             result.addProperty("comDeliveryAddress", template.getDeliveryAddress());
@@ -299,6 +322,12 @@ public class ButtonController {
 
     @PostMapping("/onclick")
     public String clickButton(@RequestBody String body){
+//        try{
+//            AppPush.pushMsg("testOnclick", "pushMsg");
+//        } catch (Exception e){
+//            e.printStackTrace();
+//        }
+
         JsonObject jsonData = new JsonParser().parse(body).getAsJsonObject();
         JsonObject result = new JsonObject();
         if (jsonData.has("buttonId")) {
@@ -315,7 +344,7 @@ public class ButtonController {
                         changeInfo = commodityService.addOrderFromTemplateByButtonId(button.getButtonId());
                         break;
                     case FORHELP:
-                        // todo
+                        changeInfo = alertTemplateService.addAlertHistoryFromTemplate(button.getButtonId());
                         break;
                     case FORMONITOR:
                         break;
@@ -330,6 +359,7 @@ public class ButtonController {
         if (!result.get("ErrorInfo").getAsString().equals("")) {
             result.addProperty("IsSuccess", false);
         } else {
+
             result.addProperty("IsSuccess", true);
         }
         return result.toString();
