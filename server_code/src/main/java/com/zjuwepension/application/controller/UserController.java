@@ -123,11 +123,16 @@ public class UserController {
         JsonObject result = new JsonObject();
         if (jsonDate.has("curId") && jsonDate.has("newPwd") && jsonDate.has("oldPwd") ) {
             User user = userService.findUserById(jsonDate.get("curId").getAsLong());
-            user.setUserPwd(jsonDate.get("newPwd").getAsString());
-            user = userService.updateUser(user);
-            if (null != user) {
-                result.addProperty("IsSuccess", true);
-                result.addProperty("curId", user.getUserId().toString());
+            if (jsonDate.get("oldPwd").getAsString().equals(user.getUserPwd())){
+                user.setUserPwd(jsonDate.get("newPwd").getAsString());
+                user = userService.updateUser(user);
+                if (null != user) {
+                    result.addProperty("IsSuccess", true);
+                    result.addProperty("curId", user.getUserId().toString());
+                } else {
+                    result.addProperty("IsSuccess", false);
+                    result.addProperty("curId", "");
+                }
             } else {
                 result.addProperty("IsSuccess", false);
                 result.addProperty("curId", "");
@@ -160,6 +165,31 @@ public class UserController {
         if (!result.get("IsSuccess").getAsBoolean()){
             result.addProperty("curId", "");
             result.addProperty("curDescription", "");
+        }
+        return result.toString();
+    }
+
+    @PostMapping("/update/faceId")
+    public String updateUserFaceId(@RequestBody String body){
+        JsonObject jsonDate = new JsonParser().parse(body).getAsJsonObject();
+        JsonObject result = new JsonObject();
+        if (jsonDate.has("curId") && jsonDate.has("newFaceId")) {
+            User user = userService.findUserById(jsonDate.get("curId").getAsLong());
+            user.setFaceId(jsonDate.get("newFaceId").getAsShort());
+            user = userService.updateUser(user);
+            if (null != user){
+                result.addProperty("IsSuccess", true);
+                result.addProperty("curId", user.getUserId().toString());
+                result.addProperty("curFaceId", user.getFaceId().toString());
+            } else {
+                result.addProperty("IsSuccess", false);
+            }
+        } else {
+            result.addProperty("IsSuccess", false);
+        }
+        if (!result.get("IsSuccess").getAsBoolean()){
+            result.addProperty("curId", "");
+            result.addProperty("curFaceId", "");
         }
         return result.toString();
     }

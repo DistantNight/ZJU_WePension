@@ -1,10 +1,8 @@
 package com.zjuwepension.application.service.impl;
 
-import com.zjuwepension.application.entity.Button;
-import com.zjuwepension.application.entity.ButtonFurn;
-import com.zjuwepension.application.entity.ButtonType;
-import com.zjuwepension.application.entity.CommodityOrderTemplate;
+import com.zjuwepension.application.entity.*;
 import com.zjuwepension.application.repository.ButtonRepository;
+import com.zjuwepension.application.service.AlertTemplateService;
 import com.zjuwepension.application.service.ButtonFurnService;
 import com.zjuwepension.application.service.ButtonService;
 import com.zjuwepension.application.service.CommodityOrderTemplateService;
@@ -24,6 +22,8 @@ public class ButtonServiceImpl implements ButtonService {
     private ButtonFurnService buttonFurnService;
     @Autowired
     private CommodityOrderTemplateService commodityOrderTemplateService;
+    @Autowired
+    private AlertTemplateService alertTemplateService;
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @Override
@@ -68,11 +68,15 @@ public class ButtonServiceImpl implements ButtonService {
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @Override
-    public Button updateButtonAlert(Button button){
+    public Button updateButtonAlert(Button button, AlertTemplate template){
         if (!clearButtonHistory(button))
             return null;
         button.setButtonType(ButtonType.FORHELP);
         buttonRepository.save(button);
+        template.setButtonId(button.getButtonId());
+        template.setIsActive(true);
+        template.setDate(Tool.getDate());
+        alertTemplateService.saveAlertTemplate(template);
         return button;
     }
 
@@ -97,19 +101,23 @@ public class ButtonServiceImpl implements ButtonService {
             case FORSHOP:
                 CommodityOrderTemplate template = commodityOrderTemplateService.findActiveTemplateByButtonId(button.getButtonId());
                 if (null == template)
-                    return null;
+                    return true;
                 template.setIsActive(false);
                 commodityOrderTemplateService.updateTemplate(template);
                 break;
             case FORFURN:
                 ButtonFurn tempBind = buttonFurnService.findActiveButtonFurnByButtonId(button.getButtonId());
                 if (null == tempBind)
-                    return null;
+                    return true;
                 tempBind.setIsActive(false);
                 buttonFurnService.updateButtonFurn(tempBind);
                 break;
             case FORHELP:
-                // no operation
+                AlertTemplate alertTemplate = alertTemplateService.findActiveTemplateByButtonId(button.getButtonId());
+                if(null == alertTemplate)
+                    return true;
+                alertTemplate.setIsActive(false);
+                alertTemplateService.updateAlertTemplate(alertTemplate);
                 break;
             case FORMONITOR:
                 // todo

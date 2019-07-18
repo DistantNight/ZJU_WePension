@@ -1,5 +1,6 @@
 package com.zjuwepension.application.service.impl;
 
+import com.zjuwepension.AppPush;
 import com.zjuwepension.application.entity.*;
 import com.zjuwepension.application.repository.CommodityOrderTemplateRepository;
 import com.zjuwepension.application.repository.CommodityRepository;
@@ -103,6 +104,11 @@ public class CommodityServiceImpl implements CommodityService {
                 if (null == order) {
                     return "按钮状态更新失败";
                 }
+                try{
+                    AppPush.pushMsg("订单按钮",  "签收待确认");
+                } catch (Exception e){
+                    e.printStackTrace();
+                }
                 return "";
             }
         } else {
@@ -121,6 +127,11 @@ public class CommodityServiceImpl implements CommodityService {
                 commodityOrder.setUserId(userButton.getUserId());
                 saveCommodity(commodity);
                 commodityOrderService.saveComOrder(commodityOrder);
+                try{
+                    AppPush.pushMsg("订单按钮",  "商品: " + commodity.getComName() + " 购买数量: " + template.getNum().toString());
+                } catch (Exception e){
+                    e.printStackTrace();
+                }
                 return "";
             } else {
                 return "余量不足";

@@ -61,6 +61,7 @@ public class CommodityOrderServiceImpl implements CommodityOrderService {
                 order.setOrderState(OrderStateType.COMPLETING);
                 break;
         }
+        updateComOrder(order);
         return "";
     }
 
